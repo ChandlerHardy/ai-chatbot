@@ -6,7 +6,48 @@ export default function ChatPage() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedAgent, setSelectedAgent] = useState('general');
   const messagesEndRef = useRef(null);
+
+  // Define available user agents
+  const userAgents = {
+    general: {
+      name: '🤖 General Assistant',
+      description: 'Helpful AI assistant for general questions',
+      systemPrompt: 'You are a helpful AI assistant. Be conversational, friendly, and helpful in your responses.',
+      color: 'from-blue-500 to-purple-600'
+    },
+    coding: {
+      name: '💻 Code Expert',
+      description: 'Specialized in programming and development',
+      systemPrompt: 'You are an expert software developer and programming assistant. Help with code, debugging, best practices, and technical questions. Provide clear, practical solutions with code examples when helpful.',
+      color: 'from-green-500 to-teal-600'
+    },
+    creative: {
+      name: '🎨 Creative Writer',
+      description: 'Creative writing and storytelling specialist',
+      systemPrompt: 'You are a creative writing assistant. Help with storytelling, creative writing, brainstorming ideas, character development, and artistic expression. Be imaginative, inspiring, and encouraging.',
+      color: 'from-pink-500 to-purple-600'
+    },
+    business: {
+      name: '📊 Business Advisor',
+      description: 'Business strategy and professional guidance',
+      systemPrompt: 'You are a business consultant and advisor. Help with business strategy, planning, marketing, productivity, and professional development. Provide practical, actionable advice.',
+      color: 'from-orange-500 to-red-600'
+    },
+    science: {
+      name: '🔬 Science Expert',
+      description: 'Scientific research and technical analysis',
+      systemPrompt: 'You are a scientific researcher and technical expert. Help with scientific concepts, research, analysis, and technical explanations. Be accurate, detailed, and educational.',
+      color: 'from-cyan-500 to-blue-600'
+    },
+    casual: {
+      name: '😊 Casual Friend',
+      description: 'Friendly conversational companion',
+      systemPrompt: 'You are a friendly, casual conversational companion. Be relaxed, fun, and engaging. Use a casual tone and help with everyday questions, casual conversations, and general life topics.',
+      color: 'from-yellow-500 to-orange-600'
+    }
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -35,7 +76,11 @@ export default function ChatPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ messages: newMessages }),
+        body: JSON.stringify({ 
+          messages: newMessages,
+          agent: selectedAgent,
+          systemPrompt: userAgents[selectedAgent].systemPrompt
+        }),
       });
 
       if (!response.ok) {
@@ -110,6 +155,11 @@ export default function ChatPage() {
     setMessages([]);
   };
 
+  const handleAgentChange = (agentId) => {
+    setSelectedAgent(agentId);
+    setMessages([]); // Clear messages when switching agents
+  };
+
   const handleKeyPress = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -124,20 +174,34 @@ export default function ChatPage() {
         <div className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                <span className="text-white font-bold text-lg">🤖</span>
+              <div className={`w-10 h-10 bg-gradient-to-r ${userAgents[selectedAgent].color} rounded-full flex items-center justify-center`}>
+                <span className="text-white font-bold text-lg">{userAgents[selectedAgent].name.split(' ')[0]}</span>
               </div>
               <div>
-                <h1 className="text-xl font-semibold text-gray-800 dark:text-white">AI Assistant</h1>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Powered by Meta Llama 3.1</p>
+                <h1 className="text-xl font-semibold text-gray-800 dark:text-white">{userAgents[selectedAgent].name}</h1>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{userAgents[selectedAgent].description}</p>
               </div>
             </div>
-            <button
-              onClick={clearChat}
-              className="px-4 py-2 text-sm bg-red-100 hover:bg-red-200 dark:bg-red-900 dark:hover:bg-red-800 text-red-700 dark:text-red-300 rounded-lg transition-colors"
-            >
-              Clear Chat
-            </button>
+            <div className="flex items-center space-x-2">
+              {/* Agent Selector */}
+              <select
+                value={selectedAgent}
+                onChange={(e) => handleAgentChange(e.target.value)}
+                className="px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                {Object.entries(userAgents).map(([id, agent]) => (
+                  <option key={id} value={id}>
+                    {agent.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                onClick={clearChat}
+                className="px-4 py-2 text-sm bg-red-100 hover:bg-red-200 dark:bg-red-900 dark:hover:bg-red-800 text-red-700 dark:text-red-300 rounded-lg transition-colors"
+              >
+                Clear Chat
+              </button>
+            </div>
           </div>
         </div>
 
@@ -145,9 +209,10 @@ export default function ChatPage() {
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {messages.length === 0 ? (
             <div className="text-center text-gray-500 dark:text-gray-400 mt-20">
-              <div className="text-6xl mb-4">💬</div>
-              <h2 className="text-2xl font-semibold mb-2">Start a conversation</h2>
-              <p>Ask me anything, and I'll help you out!</p>
+              <div className="text-6xl mb-4">{userAgents[selectedAgent].name.split(' ')[0]}</div>
+              <h2 className="text-2xl font-semibold mb-2">Chat with {userAgents[selectedAgent].name}</h2>
+              <p className="mb-4">{userAgents[selectedAgent].description}</p>
+              <p className="text-sm">Ask me anything and I'll help you out!</p>
             </div>
           ) : (
             messages.map((message, index) => (

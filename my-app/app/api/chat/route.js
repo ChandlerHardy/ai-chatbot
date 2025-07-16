@@ -15,14 +15,17 @@ export async function POST(request) {
       });
     }
 
-    const { messages } = await request.json();
+    const { messages, agent, systemPrompt } = await request.json();
+
+    // Use the provided system prompt or fall back to default
+    const finalSystemPrompt = systemPrompt || "You are a helpful AI assistant. Be conversational, friendly, and helpful in your responses.";
 
     const client = ModelClient(endpoint, new AzureKeyCredential(token));
 
     const response = await client.path("/chat/completions").post({
       body: {
         messages: [
-          { role: "system", content: "You are a helpful AI assistant. Be conversational, friendly, and helpful in your responses." },
+          { role: "system", content: finalSystemPrompt },
           ...messages
         ],
         model: modelName,
