@@ -14,6 +14,8 @@
     "@azure-rest/ai-inference": "latest",
     "@azure/core-auth": "latest",
     "@azure/core-sse": "latest",
+    "@googlemaps/google-maps-services-js": "^3.3.47",
+    "@react-google-maps/api": "^2.19.3",
     "dotenv": "^17.2.0",
     "next": "15.4.1",
     "react": "19.1.0",
