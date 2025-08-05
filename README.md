@@ -21,6 +21,9 @@ This Next.js application features an AI chatbot with multiple specialized agents
 - **Location Services**: Use current location or search for addresses
 - **Smart Queries**: Ask natural language questions about routes and locations
 
+## Vercel Deployment
+Available on [this vercel link](https://ai-chatbot-p54ijq32i-chandlerhardys-projects.vercel.app/)
+
 ## Setup Instructions
 
 ### Prerequisites
