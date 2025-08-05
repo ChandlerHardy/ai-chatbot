@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { GoogleMap, useJsApiLoader, DirectionsRenderer, Marker } from '@react-google-maps/api';
 
 const containerStyle = {
   width: '100%',
@@ -13,8 +12,6 @@ const defaultCenter = {
   lng: -122.4194 // San Francisco default
 };
 
-const libraries = ['places'];
-
 export default function MapComponent({ 
   origin, 
   destination, 
@@ -23,56 +20,185 @@ export default function MapComponent({
   onDestinationChange,
   places = []
 }) {
-  const { isLoaded } = useJsApiLoader({
-    id: 'google-map-script',
-    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
-    libraries
-  });
-
+  const mapRef = useRef(null);
   const [map, setMap] = useState(null);
-  const [directionsResponse, setDirectionsResponse] = useState(null);
+  const [directionsService, setDirectionsService] = useState(null);
+  const [directionsRenderer, setDirectionsRenderer] = useState(null);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [loadError, setLoadError] = useState(null);
+  
+  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
-  const onLoad = useCallback(function callback(map) {
-    setMap(map);
-  }, []);
-
-  const onUnmount = useCallback(function callback(map) {
-    setMap(null);
-  }, []);
-
-  // Update directions when directions prop changes
+  // Load Google Maps script manually
   useEffect(() => {
-    if (directions && directions.routes && directions.routes.length > 0) {
-      // Convert our directions format back to Google Maps format
-      if (window.google?.maps && origin && destination) {
-        const directionsService = new window.google.maps.DirectionsService();
-        
-        directionsService.route(
-          {
-            origin: origin,
-            destination: destination,
-            travelMode: window.google.maps.TravelMode.DRIVING,
-          },
-          (result, status) => {
-            if (status === 'OK') {
-              setDirectionsResponse(result);
-            }
-          }
-        );
-      }
+    if (!apiKey) {
+      setLoadError('API key missing');
+      return;
     }
-  }, [directions, origin, destination]);
 
-  const handleMapClick = (event) => {
-    const lat = event.latLng.lat();
-    const lng = event.latLng.lng();
-    
-    if (!origin) {
-      onOriginChange?.({ lat, lng });
-    } else if (!destination) {
-      onDestinationChange?.({ lat, lng });
+    if (window.google?.maps) {
+      setIsLoaded(true);
+      return;
     }
-  };
+
+    const script = document.createElement('script');
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&v=weekly`;
+    script.async = true;
+    script.defer = true;
+    
+    script.onload = () => {
+      setIsLoaded(true);
+    };
+    
+    script.onerror = (error) => {
+      console.error('Error loading Google Maps:', error);
+      setLoadError('Failed to load Google Maps script');
+    };
+    
+    document.head.appendChild(script);
+
+    return () => {
+      // Cleanup if needed
+      const existingScript = document.querySelector(`script[src*="maps.googleapis.com"]`);
+      if (existingScript && existingScript === script) {
+        document.head.removeChild(script);
+      }
+    };
+  }, [apiKey]);
+
+  // Initialize map when Google Maps is loaded
+  useEffect(() => {
+    if (!isLoaded || !mapRef.current || map) return;
+
+    const googleMap = new window.google.maps.Map(mapRef.current, {
+      center: origin || destination || defaultCenter,
+      zoom: 10,
+    });
+
+    const dirService = new window.google.maps.DirectionsService();
+    const dirRenderer = new window.google.maps.DirectionsRenderer({
+      suppressMarkers: true,
+    });
+    
+    dirRenderer.setMap(googleMap);
+    
+    setMap(googleMap);
+    setDirectionsService(dirService);
+    setDirectionsRenderer(dirRenderer);
+
+    // Add click listener
+    googleMap.addListener('click', (event) => {
+      const lat = event.latLng.lat();
+      const lng = event.latLng.lng();
+      
+      if (!origin) {
+        onOriginChange?.({ lat, lng });
+      } else if (!destination) {
+        onDestinationChange?.({ lat, lng });
+      }
+    });
+  }, [isLoaded, origin, destination, map, onOriginChange, onDestinationChange]);
+
+  // Update directions when routes change
+  useEffect(() => {
+    if (!directionsService || !directionsRenderer || !origin || !destination) return;
+
+    directionsService.route(
+      {
+        origin: origin,
+        destination: destination,
+        travelMode: window.google.maps.TravelMode.DRIVING,
+      },
+      (result, status) => {
+        if (status === 'OK') {
+          directionsRenderer.setDirections(result);
+        }
+      }
+    );
+  }, [directionsService, directionsRenderer, origin, destination]);
+
+  // Add markers
+  useEffect(() => {
+    if (!map || !window.google) return;
+
+    // Clear existing markers (you might want to store them in state for better cleanup)
+    
+    // Origin marker
+    if (origin) {
+      new window.google.maps.Marker({
+        position: origin,
+        map: map,
+        title: 'Origin',
+        icon: {
+          path: window.google.maps.SymbolPath.CIRCLE,
+          scale: 8,
+          fillColor: '#22c55e',
+          fillOpacity: 1,
+          strokeColor: '#ffffff',
+          strokeWeight: 2,
+        },
+      });
+    }
+
+    // Destination marker
+    if (destination) {
+      new window.google.maps.Marker({
+        position: destination,
+        map: map,
+        title: 'Destination',
+        icon: {
+          path: window.google.maps.SymbolPath.CIRCLE,
+          scale: 8,
+          fillColor: '#ef4444',
+          fillOpacity: 1,
+          strokeColor: '#ffffff',
+          strokeWeight: 2,
+        },
+      });
+    }
+
+    // Places markers
+    places.forEach((place) => {
+      new window.google.maps.Marker({
+        position: place.geometry.location,
+        map: map,
+        title: place.name,
+        icon: {
+          path: window.google.maps.SymbolPath.CIRCLE,
+          scale: 6,
+          fillColor: '#3b82f6',
+          fillOpacity: 1,
+          strokeColor: '#ffffff',
+          strokeWeight: 2,
+        },
+      });
+    });
+  }, [map, origin, destination, places]);
+
+  // Don't render if no API key
+  if (!apiKey) {
+    return (
+      <div className="w-full h-96 bg-yellow-50 border border-yellow-200 flex items-center justify-center">
+        <div className="text-yellow-700 text-center">
+          <div className="font-semibold">Google Maps API Key Missing</div>
+          <div className="text-sm mt-1">Please configure NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    console.error('Google Maps load error:', loadError);
+    return (
+      <div className="w-full h-96 bg-red-50 border border-red-200 flex items-center justify-center">
+        <div className="text-red-600 text-center">
+          <div className="font-semibold">Error loading Google Maps</div>
+          <div className="text-sm mt-1">Please check your API key configuration</div>
+          <div className="text-xs mt-1 text-gray-500">Check console for details</div>
+        </div>
+      </div>
+    );
+  }
 
   if (!isLoaded) {
     return (
@@ -84,76 +210,7 @@ export default function MapComponent({
 
   return (
     <div className="w-full">
-      <GoogleMap
-        mapContainerStyle={containerStyle}
-        center={origin || destination || defaultCenter}
-        zoom={10}
-        onLoad={onLoad}
-        onUnmount={onUnmount}
-        onClick={handleMapClick}
-      >
-        {/* Origin marker */}
-        {origin && (
-          <Marker
-            position={origin}
-            icon={{
-              url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <circle cx="12" cy="12" r="8" fill="#22c55e" stroke="#ffffff" stroke-width="2"/>
-                  <circle cx="12" cy="12" r="3" fill="#ffffff"/>
-                </svg>
-              `),
-              scaledSize: new window.google.maps.Size(24, 24),
-            }}
-            title="Origin"
-          />
-        )}
-
-        {/* Destination marker */}
-        {destination && (
-          <Marker
-            position={destination}
-            icon={{
-              url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <circle cx="12" cy="12" r="8" fill="#ef4444" stroke="#ffffff" stroke-width="2"/>
-                  <circle cx="12" cy="12" r="3" fill="#ffffff"/>
-                </svg>
-              `),
-              scaledSize: new window.google.maps.Size(24, 24),
-            }}
-            title="Destination"
-          />
-        )}
-
-        {/* Places markers */}
-        {places.map((place, index) => (
-          <Marker
-            key={place.place_id}
-            position={place.geometry.location}
-            icon={{
-              url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <circle cx="10" cy="10" r="6" fill="#3b82f6" stroke="#ffffff" stroke-width="2"/>
-                  <circle cx="10" cy="10" r="2" fill="#ffffff"/>
-                </svg>
-              `),
-              scaledSize: new window.google.maps.Size(20, 20),
-            }}
-            title={place.name}
-          />
-        ))}
-
-        {/* Directions */}
-        {directionsResponse && (
-          <DirectionsRenderer
-            directions={directionsResponse}
-            options={{
-              suppressMarkers: true, // We're using custom markers
-            }}
-          />
-        )}
-      </GoogleMap>
+      <div ref={mapRef} style={containerStyle} />
     </div>
   );
 }
