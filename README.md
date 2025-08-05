@@ -22,7 +22,7 @@ This Next.js application features an AI chatbot with multiple specialized agents
 - **Smart Queries**: Ask natural language questions about routes and locations
 
 ## Vercel Deployment
-Available on [this vercel link](https://ai-chatbot-p54ijq32i-chandlerhardys-projects.vercel.app/)
+Available on [this vercel link](https://ai-chatbot-pearl-psi.vercel.app/)
 
 ## Setup Instructions
 
