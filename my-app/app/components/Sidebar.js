@@ -115,13 +115,13 @@ export default function Sidebar({
           onChange={(e) => onModelChange(e.target.value)}
           className="w-full p-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         >
-          <option value="meta/Meta-Llama-3.1-8B-Instruct">🦙 Llama 3.1 8B (Working)</option>
+          <option value="meta/Meta-Llama-3.1-8B-Instruct">🦙 Llama 3.1 8B</option>
           <option value="microsoft/Phi-3.5-mini-instruct">💫 Phi-3.5 Mini</option>
           <option value="meta/Meta-Llama-3.1-70B-Instruct">🦙 Llama 3.1 70B</option>
           <option value="microsoft/Phi-3-medium-4k-instruct">💫 Phi-3 Medium</option>
         </select>
         <div className="mt-2 text-xs text-gray-400">
-          {selectedModel === 'meta/Meta-Llama-3.1-8B-Instruct' && 'Fast, capable open-source model (confirmed working)'}
+          {selectedModel === 'meta/Meta-Llama-3.1-8B-Instruct' && 'Fast, capable open-source model'}
           {selectedModel === 'microsoft/Phi-3.5-mini-instruct' && 'Compact and efficient Microsoft model'}
           {selectedModel === 'meta/Meta-Llama-3.1-70B-Instruct' && 'Larger, more capable Llama model'}
           {selectedModel === 'microsoft/Phi-3-medium-4k-instruct' && 'Medium-sized Microsoft model'}

@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import LocationInput from './LocationInput';
 
@@ -22,6 +23,48 @@ export default function MapsPanel({
   onGetDirections,
   onGetTraffic
 }) {
+  const routeDetailsRef = useRef(null);
+  const trafficDetailsRef = useRef(null);
+
+  // Auto-scroll to route details when routes are available
+  useEffect(() => {
+    if (routes.length > 0 && routeDetailsRef.current) {
+      // Small delay to ensure DOM is updated
+      setTimeout(() => {
+        // Open the details if it's closed
+        const detailsElement = routeDetailsRef.current;
+        if (detailsElement && !detailsElement.open) {
+          detailsElement.open = true;
+        }
+        
+        // Scroll to the route details section
+        detailsElement?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'nearest'
+        });
+      }, 300);
+    }
+  }, [routes]);
+
+  // Auto-scroll to traffic info when traffic data is available
+  useEffect(() => {
+    if (traffic && trafficDetailsRef.current) {
+      // Small delay to ensure DOM is updated
+      setTimeout(() => {
+        // Open the details if it's closed
+        const detailsElement = trafficDetailsRef.current;
+        if (detailsElement && !detailsElement.open) {
+          detailsElement.open = true;
+        }
+        
+        // Scroll to the traffic details section
+        detailsElement?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'nearest'
+        });
+      }, 500); // Slightly longer delay for traffic to appear after routes
+    }
+  }, [traffic]);
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -82,11 +125,11 @@ export default function MapsPanel({
         />
       </div>
 
-      {/* Route Info - Collapsed by default */}
+      {/* Route Info - Auto-opens and scrolls when available */}
       {routes.length > 0 && (
-        <details className="bg-gray-50 dark:bg-gray-800 rounded-lg">
+        <details ref={routeDetailsRef} className="bg-gray-50 dark:bg-gray-800 rounded-lg">
           <summary className="p-3 cursor-pointer font-medium text-gray-800 dark:text-white">
-            Route Details ({routes.length} route{routes.length > 1 ? 's' : ''})
+            📍 Route Details ({routes.length} route{routes.length > 1 ? 's' : ''})
           </summary>
           <div className="px-3 pb-3 space-y-2">
             {routes.map((route, index) => (
@@ -101,11 +144,11 @@ export default function MapsPanel({
         </details>
       )}
 
-      {/* Traffic Info - Collapsed by default */}
+      {/* Traffic Info - Auto-opens and scrolls when available */}
       {traffic && (
-        <details className="bg-gray-50 dark:bg-gray-800 rounded-lg">
+        <details ref={trafficDetailsRef} className="bg-gray-50 dark:bg-gray-800 rounded-lg">
           <summary className="p-3 cursor-pointer font-medium text-gray-800 dark:text-white">
-            Traffic Conditions
+            🚦 Traffic Conditions
           </summary>
           <div className="px-3 pb-3 space-y-2">
             {traffic.traffic_info.map((info, index) => (
