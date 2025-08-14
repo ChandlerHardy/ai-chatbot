@@ -1,14 +1,8 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import dynamic from 'next/dynamic';
-import LocationInput from './components/LocationInput';
-
-// Dynamically import MapComponent to avoid SSR issues
-const MapComponent = dynamic(() => import('./components/MapComponent'), {
-  ssr: false,
-  loading: () => <div className="w-full h-96 bg-gray-200 flex items-center justify-center">Loading map...</div>
-});
+import Sidebar from './components/Sidebar';
+import MapsPanel from './components/MapsPanel';
 
 export default function ChatPage() {
   const [messages, setMessages] = useState([]);
@@ -24,6 +18,9 @@ export default function ChatPage() {
   const [places, setPlaces] = useState([]);
   const [traffic, setTraffic] = useState(null);
   const [isLoadingMap, setIsLoadingMap] = useState(false);
+
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [chatHistory, setChatHistory] = useState([]);
 
   // Define available user agents
   const userAgents = {
@@ -293,9 +290,22 @@ export default function ChatPage() {
     setMessages([]);
   };
 
+  const handleNewChat = () => {
+    setMessages([]);
+    setOrigin(null);
+    setDestination(null);
+    setRoutes([]);
+    setPlaces([]);
+    setTraffic(null);
+  };
+
   const handleAgentChange = (agentId) => {
     setSelectedAgent(agentId);
-    setMessages([]); // Clear messages when switching agents
+    setMessages([]);
+  };
+
+  const toggleSidebar = () => {
+    setIsSidebarOpen(!isSidebarOpen);
   };
 
   const handleKeyPress = (e) => {
@@ -306,12 +316,35 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
-      <div className="container mx-auto max-w-7xl h-screen flex flex-col">
+    <div className="h-screen bg-white dark:bg-gray-900 flex overflow-hidden">
+      {/* Sidebar */}
+      <Sidebar
+        selectedAgent={selectedAgent}
+        onAgentChange={handleAgentChange}
+        onClearChat={clearChat}
+        onNewChat={handleNewChat}
+        chatHistory={chatHistory}
+        onChatSelect={() => {}}
+        isSidebarOpen={isSidebarOpen}
+        onToggleSidebar={toggleSidebar}
+      />
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 p-4">
+        <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
+              {/* Mobile menu button */}
+              <button
+                onClick={toggleSidebar}
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg lg:hidden"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+              
               <div className={`w-10 h-10 bg-gradient-to-r ${userAgents[selectedAgent].color} rounded-full flex items-center justify-center`}>
                 <span className="text-white font-bold text-lg">{userAgents[selectedAgent].name.split(' ')[0]}</span>
               </div>
@@ -320,146 +353,45 @@ export default function ChatPage() {
                 <p className="text-sm text-gray-500 dark:text-gray-400">{userAgents[selectedAgent].description}</p>
               </div>
             </div>
-            <div className="flex items-center space-x-2">
-              {/* Agent Selector */}
-              <select
-                value={selectedAgent}
-                onChange={(e) => handleAgentChange(e.target.value)}
-                className="px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                {Object.entries(userAgents).map(([id, agent]) => (
-                  <option key={id} value={id}>
-                    {agent.name}
-                  </option>
-                ))}
-              </select>
-              <button
-                onClick={clearChat}
-                className="px-4 py-2 text-sm bg-red-100 hover:bg-red-200 dark:bg-red-900 dark:hover:bg-red-800 text-red-700 dark:text-red-300 rounded-lg transition-colors"
-              >
-                Clear Chat
-              </button>
-            </div>
           </div>
         </div>
 
-        {/* Main Content Area */}
+        {/* Content Area */}
         <div className="flex-1 flex overflow-hidden">
-          {/* Maps Panel - Only show when Maps agent is selected */}
+          {/* Maps Panel - Show as expandable section when Maps agent is selected */}
           {selectedAgent === 'maps' && (
-            <div className="w-1/2 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 p-4 overflow-y-auto">
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Route Planning</h3>
-                
-                {/* Location Inputs */}
-                <div className="space-y-4">
-                  <LocationInput
-                    label="From (Origin)"
-                    placeholder="Enter starting location..."
-                    onLocationSet={setOrigin}
-                  />
-                  
-                  <LocationInput
-                    label="To (Destination)"
-                    placeholder="Enter destination..."
-                    onLocationSet={setDestination}
-                  />
-                </div>
-
-                {/* Action Buttons */}
-                {origin && destination && (
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      onClick={() => findPlacesAlongRoute('restaurant')}
-                      disabled={isLoadingMap}
-                      className="px-3 py-2 text-sm bg-blue-100 hover:bg-blue-200 dark:bg-blue-900 dark:hover:bg-blue-800 text-blue-700 dark:text-blue-300 rounded-lg transition-colors disabled:opacity-50"
-                    >
-                      🍽️ Find Restaurants
-                    </button>
-                    <button
-                      onClick={() => findPlacesAlongRoute('gas_station')}
-                      disabled={isLoadingMap}
-                      className="px-3 py-2 text-sm bg-green-100 hover:bg-green-200 dark:bg-green-900 dark:hover:bg-green-800 text-green-700 dark:text-green-300 rounded-lg transition-colors disabled:opacity-50"
-                    >
-                      ⛽ Find Gas Stations
-                    </button>
-                    <button
-                      onClick={() => findPlacesAlongRoute('tourist_attraction')}
-                      disabled={isLoadingMap}
-                      className="px-3 py-2 text-sm bg-purple-100 hover:bg-purple-200 dark:bg-purple-900 dark:hover:bg-purple-800 text-purple-700 dark:text-purple-300 rounded-lg transition-colors disabled:opacity-50"
-                    >
-                      🎯 Find Attractions
-                    </button>
-                  </div>
-                )}
-
-                {/* Map Component */}
-                <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-                  <MapComponent
-                    origin={origin?.coordinates}
-                    destination={destination?.coordinates}
-                    directions={{ routes }}
-                    places={places}
-                    onOriginChange={(coords) => setOrigin({ coordinates: coords, address: 'Selected location' })}
-                    onDestinationChange={(coords) => setDestination({ coordinates: coords, address: 'Selected location' })}
-                  />
-                </div>
-
-                {/* Route Info */}
-                {routes.length > 0 && (
-                  <div className="space-y-2">
-                    <h4 className="font-medium text-gray-800 dark:text-white">Available Routes:</h4>
-                    {routes.map((route, index) => (
-                      <div key={index} className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg text-sm">
-                        <div className="font-medium">{route.summary}</div>
-                        <div className="text-gray-600 dark:text-gray-400">
-                          {route.duration_text} • {route.distance_text}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Traffic Info */}
-                {traffic && (
-                  <div className="space-y-2">
-                    <h4 className="font-medium text-gray-800 dark:text-white">Traffic Conditions:</h4>
-                    {traffic.traffic_info.map((info, index) => (
-                      <div key={index} className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg text-sm">
-                        <div className="flex justify-between">
-                          <span className="font-medium">{info.summary}</span>
-                          <span className={`px-2 py-1 rounded text-xs ${
-                            info.traffic_level === 'light' ? 'bg-green-100 text-green-800' :
-                            info.traffic_level === 'moderate' ? 'bg-yellow-100 text-yellow-800' :
-                            'bg-red-100 text-red-800'
-                          }`}>
-                            {info.traffic_level} traffic
-                          </span>
-                        </div>
-                        <div className="text-gray-600 dark:text-gray-400">
-                          {info.duration_in_traffic.text} (+{info.traffic_delay.text} delay)
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+            <div className="w-80 bg-gray-50 dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 p-4 overflow-y-auto">
+              <MapsPanel
+                origin={origin}
+                destination={destination}
+                routes={routes}
+                places={places}
+                traffic={traffic}
+                isLoadingMap={isLoadingMap}
+                onOriginChange={setOrigin}
+                onDestinationChange={setDestination}
+                onFindPlaces={findPlacesAlongRoute}
+                onGetDirections={getDirections}
+                onGetTraffic={getTrafficInfo}
+              />
             </div>
           )}
 
           {/* Chat Area */}
-          <div className={`${selectedAgent === 'maps' ? 'w-1/2' : 'w-full'} flex flex-col`}>
+          <div className="flex-1 flex flex-col">
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div className="flex-1 overflow-y-auto p-6 space-y-4">
               {messages.length === 0 ? (
-                <div className="text-center text-gray-500 dark:text-gray-400 mt-20">
-                  <div className="text-6xl mb-4">{userAgents[selectedAgent].name.split(' ')[0]}</div>
-                  <h2 className="text-2xl font-semibold mb-2">Chat with {userAgents[selectedAgent].name}</h2>
-                  <p className="mb-4">{userAgents[selectedAgent].description}</p>
+                <div className="flex flex-col items-center justify-center h-full text-center text-gray-500 dark:text-gray-400">
+                  <div className={`w-16 h-16 bg-gradient-to-r ${userAgents[selectedAgent].color} rounded-full flex items-center justify-center mb-4`}>
+                    <span className="text-white font-bold text-2xl">{userAgents[selectedAgent].name.split(' ')[0]}</span>
+                  </div>
+                  <h2 className="text-2xl font-semibold mb-2 text-gray-800 dark:text-white">{userAgents[selectedAgent].name}</h2>
+                  <p className="mb-4 max-w-md">{userAgents[selectedAgent].description}</p>
                   {selectedAgent === 'maps' ? (
-                    <p className="text-sm">Set your origin and destination, then ask me about routes, restaurants, traffic, and more!</p>
+                    <p className="text-sm max-w-md">Set your origin and destination in the side panel, then ask me about routes, restaurants, traffic, and more!</p>
                   ) : (
-                    <p className="text-sm">Ask me anything and I'll help you out!</p>
+                    <p className="text-sm max-w-md">Ask me anything and I'll help you out!</p>
                   )}
                 </div>
               ) : (
@@ -469,12 +401,12 @@ export default function ChatPage() {
                     className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
                     <div
-                      className={`max-w-[80%] rounded-2xl px-4 py-3 ${
+                      className={`max-w-[75%] rounded-2xl px-4 py-3 ${
                         message.role === 'user'
                           ? 'bg-blue-500 text-white'
                           : message.isError
                           ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                          : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-white shadow-sm border border-gray-200 dark:border-gray-700'
+                          : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-white'
                       }`}
                     >
                       <div className="whitespace-pre-wrap">
@@ -491,9 +423,9 @@ export default function ChatPage() {
             </div>
 
             {/* Input */}
-            <div className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-4">
-              <div className="flex space-x-4">
-                <div className="flex-1 relative">
+            <div className="border-t border-gray-200 dark:border-gray-700 p-4 bg-white dark:bg-gray-800">
+              <div className="flex space-x-3">
+                <div className="flex-1">
                   <textarea
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
@@ -503,7 +435,7 @@ export default function ChatPage() {
                         ? "Ask about routes, traffic, restaurants, or any location-based questions..." 
                         : "Type your message... (Press Enter to send, Shift+Enter for new line)"
                     }
-                    className="w-full p-3 pr-12 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white resize-none"
+                    className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white resize-none"
                     rows="1"
                     style={{ minHeight: '50px', maxHeight: '150px' }}
                     disabled={isLoading}
@@ -512,12 +444,14 @@ export default function ChatPage() {
                 <button
                   onClick={sendMessage}
                   disabled={!input.trim() || isLoading}
-                  className="px-6 py-3 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-xl transition-colors font-medium flex items-center space-x-2"
+                  className="px-6 py-3 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-xl transition-colors font-medium flex items-center justify-center min-w-[80px]"
                 >
                   {isLoading ? (
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                   ) : (
-                    <span>Send</span>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                    </svg>
                   )}
                 </button>
               </div>
