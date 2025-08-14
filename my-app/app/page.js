@@ -21,6 +21,8 @@ export default function ChatPage() {
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [chatHistory, setChatHistory] = useState([]);
+  const [selectedModel, setSelectedModel] = useState('meta/Meta-Llama-3.1-8B-Instruct');
+  const [currentChatId, setCurrentChatId] = useState(null);
 
   // Define available user agents
   const userAgents = {
@@ -213,6 +215,7 @@ export default function ChatPage() {
         body: JSON.stringify({ 
           messages: newMessages,
           agent: selectedAgent,
+          model: selectedModel,
           systemPrompt: userAgents[selectedAgent].systemPrompt,
           mapData
         }),
@@ -258,7 +261,7 @@ export default function ChatPage() {
         }
       }
 
-      // Mark streaming as complete
+      // Mark streaming as complete and save to history
       setMessages(prev => {
         const updated = [...prev];
         updated[updated.length - 1] = {
@@ -266,6 +269,12 @@ export default function ChatPage() {
           content: assistantContent,
           isStreaming: false
         };
+        
+        // Auto-save chat after assistant response
+        setTimeout(() => {
+          saveChatToHistory(updated, selectedAgent, selectedModel);
+        }, 100);
+        
         return updated;
       });
 
@@ -290,8 +299,45 @@ export default function ChatPage() {
     setMessages([]);
   };
 
+  // Load chat history from localStorage on component mount
+  useEffect(() => {
+    const saved = localStorage.getItem('chatHistory');
+    if (saved) {
+      setChatHistory(JSON.parse(saved));
+    }
+  }, []);
+
+  // Save chat to history
+  const saveChatToHistory = (messages, agent, model) => {
+    if (messages.length === 0) return;
+    
+    const firstUserMessage = messages.find(m => m.role === 'user')?.content || 'New Chat';
+    const title = firstUserMessage.length > 50 ? firstUserMessage.substring(0, 50) + '...' : firstUserMessage;
+    
+    const chatData = {
+      id: currentChatId || Date.now().toString(),
+      title,
+      agent,
+      model,
+      messages,
+      timestamp: new Date().toLocaleDateString(),
+      mapData: selectedAgent === 'maps' ? { origin, destination, routes, places, traffic } : null
+    };
+    
+    const newHistory = [chatData, ...chatHistory.filter(chat => chat.id !== chatData.id)].slice(0, 20); // Keep only 20 most recent
+    setChatHistory(newHistory);
+    localStorage.setItem('chatHistory', JSON.stringify(newHistory));
+    setCurrentChatId(chatData.id);
+  };
+
   const handleNewChat = () => {
+    // Save current chat before starting new one
+    if (messages.length > 0) {
+      saveChatToHistory(messages, selectedAgent, selectedModel);
+    }
+    
     setMessages([]);
+    setCurrentChatId(null);
     setOrigin(null);
     setDestination(null);
     setRoutes([]);
@@ -299,21 +345,41 @@ export default function ChatPage() {
     setTraffic(null);
   };
 
+  const handleChatSelect = (chat) => {
+    // Save current chat before switching
+    if (messages.length > 0 && currentChatId !== chat.id) {
+      saveChatToHistory(messages, selectedAgent, selectedModel);
+    }
+    
+    setMessages(chat.messages);
+    setSelectedAgent(chat.agent);
+    setSelectedModel(chat.model);
+    setCurrentChatId(chat.id);
+    
+    // Restore map data if it exists
+    if (chat.mapData) {
+      setOrigin(chat.mapData.origin);
+      setDestination(chat.mapData.destination);
+      setRoutes(chat.mapData.routes || []);
+      setPlaces(chat.mapData.places || []);
+      setTraffic(chat.mapData.traffic);
+    }
+  };
+
   const handleAgentChange = (agentId) => {
     setSelectedAgent(agentId);
     setMessages([]);
+    setCurrentChatId(null);
+  };
+
+  const handleModelChange = (modelId) => {
+    setSelectedModel(modelId);
   };
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
   };
 
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
-  };
 
   return (
     <div className="h-screen bg-white dark:bg-gray-900 flex overflow-hidden">
@@ -324,7 +390,9 @@ export default function ChatPage() {
         onClearChat={clearChat}
         onNewChat={handleNewChat}
         chatHistory={chatHistory}
-        onChatSelect={() => {}}
+        onChatSelect={handleChatSelect}
+        selectedModel={selectedModel}
+        onModelChange={handleModelChange}
         isSidebarOpen={isSidebarOpen}
         onToggleSidebar={toggleSidebar}
       />
@@ -340,7 +408,7 @@ export default function ChatPage() {
                 onClick={toggleSidebar}
                 className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg lg:hidden"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" suppressHydrationWarning={true}>
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
               </button>
@@ -429,7 +497,12 @@ export default function ChatPage() {
                   <textarea
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
-                    onKeyPress={handleKeyPress}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        sendMessage();
+                      }
+                    }}
                     placeholder={
                       selectedAgent === 'maps' 
                         ? "Ask about routes, traffic, restaurants, or any location-based questions..." 
@@ -449,7 +522,7 @@ export default function ChatPage() {
                   {isLoading ? (
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                   ) : (
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" suppressHydrationWarning={true}>
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                     </svg>
                   )}

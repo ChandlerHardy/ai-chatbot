@@ -4,7 +4,6 @@ import { createSseStream } from "@azure/core-sse";
 
 const token = process.env.GITHUB_TOKEN;
 const endpoint = "https://models.github.ai/inference";
-const modelName = "meta/Meta-Llama-3.1-8B-Instruct";
 
 export async function POST(request) {
   try {
@@ -15,7 +14,12 @@ export async function POST(request) {
       });
     }
 
-    const { messages, agent, systemPrompt, mapData } = await request.json();
+    const { messages, agent, model, systemPrompt, mapData } = await request.json();
+    
+    // Use provided model or fall back to default
+    const modelName = model || "meta/Meta-Llama-3.1-8B-Instruct";
+    
+    console.log(`Using model: ${modelName}`);
 
     // Use the provided system prompt or fall back to default
     const finalSystemPrompt = systemPrompt || "You are a helpful AI assistant. Be conversational, friendly, and helpful in your responses.";
@@ -65,11 +69,13 @@ export async function POST(request) {
         ],
         model: modelName,
         stream: true,
-        max_tokens: 800,
+        max_tokens: 2000,
         temperature: 0.7,
         model_extras: { stream_options: { include_usage: true } }
       }
     }).asNodeStream();
+
+    console.log(`API Response status: ${response.status}`);
 
     if (!response.body) {
       throw new Error("No response body received");

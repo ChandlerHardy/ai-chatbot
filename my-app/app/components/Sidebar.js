@@ -10,7 +10,9 @@ export default function Sidebar({
   chatHistory = [], 
   onChatSelect,
   isSidebarOpen,
-  onToggleSidebar 
+  onToggleSidebar,
+  selectedModel,
+  onModelChange 
 }) {
   const userAgents = {
     general: {
@@ -62,7 +64,7 @@ export default function Sidebar({
             onClick={onToggleSidebar}
             className="p-2 hover:bg-gray-800 rounded-lg transition-colors lg:hidden"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" suppressHydrationWarning={true}>
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
@@ -73,7 +75,7 @@ export default function Sidebar({
           onClick={onNewChat}
           className="w-full p-3 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors flex items-center justify-center space-x-2"
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" suppressHydrationWarning={true}>
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
           </svg>
           <span>New Chat</span>
@@ -105,6 +107,27 @@ export default function Sidebar({
         </div>
       </div>
 
+      {/* Model Selection */}
+      <div className="p-4 border-b border-gray-700">
+        <h3 className="text-sm font-medium text-gray-400 mb-3">AI Model</h3>
+        <select
+          value={selectedModel}
+          onChange={(e) => onModelChange(e.target.value)}
+          className="w-full p-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        >
+          <option value="meta/Meta-Llama-3.1-8B-Instruct">🦙 Llama 3.1 8B (Working)</option>
+          <option value="microsoft/Phi-3.5-mini-instruct">💫 Phi-3.5 Mini</option>
+          <option value="meta/Meta-Llama-3.1-70B-Instruct">🦙 Llama 3.1 70B</option>
+          <option value="microsoft/Phi-3-medium-4k-instruct">💫 Phi-3 Medium</option>
+        </select>
+        <div className="mt-2 text-xs text-gray-400">
+          {selectedModel === 'meta/Meta-Llama-3.1-8B-Instruct' && 'Fast, capable open-source model (confirmed working)'}
+          {selectedModel === 'microsoft/Phi-3.5-mini-instruct' && 'Compact and efficient Microsoft model'}
+          {selectedModel === 'meta/Meta-Llama-3.1-70B-Instruct' && 'Larger, more capable Llama model'}
+          {selectedModel === 'microsoft/Phi-3-medium-4k-instruct' && 'Medium-sized Microsoft model'}
+        </div>
+      </div>
+
       {/* Chat History */}
       <div className="flex-1 overflow-y-auto">
         <div className="p-4">
@@ -119,10 +142,13 @@ export default function Sidebar({
                 <button
                   key={index}
                   onClick={() => onChatSelect(chat)}
-                  className="w-full p-3 text-left bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors group"
+                  className="w-full p-3 text-left bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors group relative"
                 >
-                  <div className="text-sm font-medium truncate">{chat.title}</div>
-                  <div className="text-xs text-gray-400 mt-1">{chat.agent} • {chat.timestamp}</div>
+                  <div className="text-sm font-medium truncate pr-6">{chat.title}</div>
+                  <div className="text-xs text-gray-400 mt-1 flex items-center justify-between">
+                    <span>{chat.agent} • {chat.timestamp}</span>
+                    <span className="text-xs bg-gray-700 px-1 rounded">{chat.model?.split('/')[1]?.split('-')[0] || 'Model'}</span>
+                  </div>
                 </button>
               ))}
             </div>
@@ -136,7 +162,7 @@ export default function Sidebar({
           onClick={onClearChat}
           className="w-full p-2 text-sm bg-red-900 hover:bg-red-800 text-red-300 rounded-lg transition-colors flex items-center justify-center space-x-2"
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" suppressHydrationWarning={true}>
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
           </svg>
           <span>Clear Chat</span>
